@@ -1,0 +1,17 @@
+{
+    "version": "0",
+    "id": "2387c4e5-f7f3-8def-bf87-a21066f7de7a",
+    "detail-type": "EBS Volume Notification",
+    "source": "aws.ec2",
+    "account": "123456789012",
+    "region": "eu-west-2",
+    "resources": [
+        "arn:aws:ec2:eu-west-2:123456789012:volume/vol-096756bd6fba8f43c"
+    ],
+    "detail": {
+        "result": "deleted",
+        "cause": "",
+        "event": "deleteVolume",
+        "request-id": "41d704a9-970f-4c4e-9dd9-1cffd87ed9d2"
+    }
+}

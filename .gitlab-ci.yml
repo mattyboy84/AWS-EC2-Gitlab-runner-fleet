@@ -1,0 +1,24 @@
+image: amazon/aws-sam-cli-build-image-nodejs14.x:latest
+ 
+stages:
+  - deploy
+ 
+variables:
+  STACK_NAME: EC2-gitlab-runner-fleet
+  REGION: eu-west-2
+  RUNNER_URL: https://gitlab.com/
+  RUNNER_TOKEN: $RUNNER_TOKEN
+  RUNNER_EXECUTOR: docker
+  RUNNER_IMAGE: gitlab-runner:latest
+
+before_script:
+  - set AWS_ACCESS_KEY_ID=$prod_key_id
+  - set AWS_SECRET_ACCESS_KEY=$prod_secret_key
+
+deploy:
+  image: amazon/aws-sam-cli-build-image-nodejs14.x:latest
+  stage: deploy
+  script: 
+   - sam build
+   - sam package --output-template-file packaged.yaml --s3-bucket gitlab-codebucket --region $REGION
+   - sam deploy --no-fail-on-empty-changeset --template-file packaged.yaml --stack-name $STACK_NAME --s3-bucket gitlab-codebucket --capabilities CAPABILITY_NAMED_IAM --region $REGION --parameter-overrides stackName=$STACK_NAME runnerUrl=$RUNNER_URL runnerToken=$RUNNER_TOKEN runnerExecutor=$RUNNER_EXECUTOR runnerImage=$RUNNER_IMAGE

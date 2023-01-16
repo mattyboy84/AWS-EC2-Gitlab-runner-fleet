@@ -1,0 +1,386 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  runnerUrl:
+    Type: String
+    Description: url for the gitlab runner registeration
+    Default: https://gitlab.com/
+  runnerToken:
+    Type: String
+    Description: token for the gitlab runner registeration
+    #Default: "-=-=-=-TOKEN HERE-=-=-=-"
+  runnerExecutor:
+    Type: String
+    Description: executor for the gitlab runner registeration
+    Default: docker
+  runnerImage:
+    Type: String
+    Description: docker image for the gitlab runner registeration
+    Default: gitlab-runner:latest
+  vpcCIDR:
+    Type: String
+    Description: cidr block for the vpc (and subnet)
+    Default: 10.2.0.0/16
+  scalingGroupMinSize:
+    Type: String
+    Default: "0"
+  scalingGroupMaxSize:
+    Type: String
+    Default: "4"
+  scalingGroupDesiredSize:
+    Type: String
+    #Default: "1"
+
+Resources:
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-EC2Role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - events.amazonaws.com
+                - ssm.amazonaws.com
+                - states.amazonaws.com
+                - autoscaling.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: !Sub "${AWS::StackName}-role-policy"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: "ec2:*"
+                Resource: "*"
+              - Effect: Allow
+                Action: "ssm:SendCommand"
+                Resource: "*"
+              - Effect: Allow
+                Action: "states:*"
+                Resource: "*"
+              - Effect: Allow
+                Action: "autoscaling:*"
+                Resource: "*"
+              - Effect: Allow
+                Action: "events:*"
+                Resource: "*"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+
+  demoInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      InstanceProfileName: !Sub "${AWS::StackName}-profile"
+      Path: /
+      Roles: 
+        - !Ref EC2Role
+  
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PublicRouteTable"
+  
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref EC2vpc
+  
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref EC2vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PublicRouteTable"
+  
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+    DependsOn:
+      - VPCGatewayAttachment  
+  
+  subnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref subnetC
+  
+  EC2vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref vpcCIDR
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-VPC"
+  
+  subnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !GetAtt EC2vpc.CidrBlock
+      AvailabilityZone: eu-west-2c
+      VpcId: !Ref EC2vpc
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-subnetC"
+  
+  instanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: !Sub "${AWS::StackName}-SecurityGroup description"
+      GroupName: !Sub "${AWS::StackName}-SecurityGroup"
+      VpcId: !Ref EC2vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-instanceSecurityGroup"
+  
+  demoKey:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: !Sub "${AWS::StackName}-keyPair"
+      KeyType: rsa
+      #PublicKeyMaterial: #Key Here
+
+  placementGroup:
+    Type: AWS::EC2::PlacementGroup
+    Properties: 
+      SpreadLevel: rack
+      Strategy: spread
+  
+  demoTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties: 
+      LaunchTemplateName: !Sub "${AWS::StackName}-demoTemplate"
+      VersionDescription: "1.0.0"
+      LaunchTemplateData: 
+        ImageId: ami-084e8c05825742534
+        InstanceType: t2.micro
+        CreditSpecification:
+          CpuCredits: standard
+        DisableApiTermination: false # true = cannot shutdown via console, api or cli
+        EbsOptimized: false # EBS I/O optimized
+        InstanceInitiatedShutdownBehavior: stop # what to do when told to 'shutdown'
+        Monitoring:
+          Enabled: true
+        KeyName: !Ref demoKey
+        IamInstanceProfile:
+          Arn: !GetAtt demoInstanceProfile.Arn
+        NetworkInterfaces:
+          - DeviceIndex: 0
+            DeleteOnTermination: true
+            InterfaceType: interface
+            SubnetId: !Ref subnetC
+            Groups:
+              - !Ref instanceSecurityGroup
+        Placement:
+          GroupName: !Ref placementGroup
+          Tenancy: default
+        MetadataOptions:
+          HttpEndpoint: enabled # curl http://169.254.169.254/latest/meta-data/
+          InstanceMetadataTags: enabled
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+  
+            sudo yum -y update
+  
+            INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+            export INSTANCE_ID
+            echo "Instance ID: $INSTANCE_ID"
+  
+            curl https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm -o amazon-cloudwatch-agent.rpm
+            sudo yum install -y ./amazon-cloudwatch-agent.rpm
+            
+            # Create a configuration file for the agent
+            sudo tee /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<EOF
+            {
+              "region": "${AWS::Region}",
+              "namespace": "{instance_id}",
+              "logs": {
+                "logs_collected": {
+                  "files": {
+                    "collect_list": [
+                      {
+                        "file_path": "/var/log/messages",
+                        "log_group_name": "/aws/ec2/${AWS::StackName}-terminal",
+                        "log_stream_name": "{instance_id}"
+                      },
+                      {
+                        "file_path": "/var/log/messages",
+                        "log_group_name": "/aws/ec2/${AWS::StackName}-gitlab",
+                        "log_stream_name": "{instance_id}",
+                        "filters": [
+                          {
+                            "type": "include",
+                            "expression": "ip-[0-9]{1,3}-[0-9]{1,3}-[0-9]{1,3}-[0-9]{1,3} gitlab-runner: "
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+            EOF
+  
+            # Start and enable the agent
+            sudo systemctl start amazon-cloudwatch-agent
+            sudo systemctl enable amazon-cloudwatch-agent
+  
+            # install git & docker
+            sudo yum -y install git
+            sudo amazon-linux-extras install -y docker
+  
+            # Add user to docker group
+            sudo usermod -aG docker ec2-user
+  
+            # Start and enable docker
+            sudo systemtl enable docker
+            sudo systemtl start docker
+            sudo service docker start
+  
+            sudo curl -LJO "https://gitlab-runner-downloads.s3.amazonaws.com/latest/rpm/gitlab-runner_amd64.rpm"
+            sudo rpm -i gitlab-runner_amd64.rpm
+  
+            sudo gitlab-runner register --url "${runnerUrl}" --registration-token "${runnerToken}" --executor "${runnerExecutor}" --docker-image "${runnerImage}" --name "$INSTANCE_ID" --docker-privileged -n
+    DependsOn:
+      - EC2Logs3
+      - EC2Logs4
+  
+  EC2Logs3: # === This log name is hardcoded into the ec2 template UserData FYI ===
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['', [/aws/ec2/, !Sub "${AWS::StackName}-terminal"]]
+  
+  EC2Logs4: # === This log name is hardcoded into the ec2 template UserData FYI ===
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['', [/aws/ec2/, !Sub "${AWS::StackName}-gitlab"]]
+  
+  unregisterRunnerCommand:
+    Type: "AWS::SSM::Document"
+    Properties:
+      VersionName: "1.0.0"
+      TargetType: "/AWS::EC2::Instance"
+      DocumentType: "Command"
+      DocumentFormat: "JSON"
+      Content:
+        schemaVersion: "2.2"
+        description: "Command Document Example JSON Template"
+        parameters:
+          Token:
+            type: "String"
+            description: "Token"
+            default: !Ref runnerToken
+          Url:
+            type: "String"
+            description: "Url"
+            default: !Ref runnerUrl
+        mainSteps:
+        - action: "aws:runShellScript"
+          name: "example"
+          inputs:
+            runCommand: 
+              - "sudo gitlab-runner unregister -t '{{Token}}' -u '{{Url}}' --name $(curl http://169.254.169.254/latest/meta-data/instance-id)"
+
+  stepFunctionEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: !Sub "${AWS::StackName}-stepFunction-eventRule"
+      RoleArn: !GetAtt EC2Role.Arn
+      State: ENABLED
+      EventPattern:
+        source:
+          - "aws.autoscaling"
+        detail:
+          LifecycleTransition:
+            - "autoscaling:EC2_INSTANCE_TERMINATING"
+          AutoScalingGroupName:
+            - !Ref EC2AutoScalingGroup
+      Targets:
+        - Arn: !GetAtt StepFunction.Arn
+          Id: !Sub "${AWS::StackName}-stepFunction-eventRule"
+          RoleArn: !GetAtt EC2Role.Arn
+    DependsOn:
+      - StepFunction
+  
+  StepFunction:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn: !GetAtt EC2Role.Arn
+      StateMachineName: !Sub "${AWS::StackName}-stepFunction"
+      StateMachineType: "STANDARD"
+      TracingConfiguration:
+        Enabled: true
+      Definition:
+        StartAt: "sendCommand"
+        States:
+          sendCommand:
+            Type: Task
+            Resource: "arn:aws:states:::aws-sdk:ssm:sendCommand"
+            Parameters:
+              DocumentName: !Ref unregisterRunnerCommand
+              InstanceIds.$: "States.Array($.detail.EC2InstanceId)"
+              TimeoutSeconds: 30
+              Parameters:
+                Token.$: !Sub "States.Array('${runnerToken}')"
+                Url.$: !Sub "States.Array('${runnerUrl}')"
+            Next: End
+          End:
+            Type: Wait
+            Seconds: 0
+            End: true
+
+  EC2AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub "${AWS::StackName}-ScalingGroup"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref demoTemplate
+        Version: !GetAtt demoTemplate.LatestVersionNumber
+      MinSize: !Ref scalingGroupMinSize
+      DesiredCapacity: !Ref scalingGroupDesiredSize
+      MaxSize: !Ref scalingGroupMaxSize
+      DesiredCapacityType: "units"
+      VPCZoneIdentifier:   
+        - !Ref subnetC
+      DefaultInstanceWarmup: 180 #time before metrics are sent to Cloudwatch Metrics
+      MetricsCollection: 
+        - Granularity: "1Minute"
+          Metrics: 
+            - GroupMinSize
+            - GroupMaxSize
+            - GroupDesiredCapacity
+      LifecycleHookSpecificationList:
+        - LifecycleHookName: termination-hook
+          LifecycleTransition: autoscaling:EC2_INSTANCE_TERMINATING # sends event to EventBridge
+          HeartbeatTimeout: 30 # instance waits this long before actually terminating
+          DefaultResult: CONTINUE
+      PlacementGroup: !Ref placementGroup
+      NewInstancesProtectedFromScaleIn: false #new instances protected when scaling in (terminated)

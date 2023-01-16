@@ -1,0 +1,15 @@
+{
+    "version": "0",
+    "id": "d1f95c0f-9228-4e5f-856b-ba53f4dd9bdb",
+    "detail-type": "EC2 Instance State-change Notification",
+    "source": "aws.ec2",
+    "account": "123456789012",
+    "region": "eu-west-2",
+    "resources": [
+        "arn:aws:ec2:eu-west-2:123456789012:instance/i-02625350f9258ef16"
+    ],
+    "detail": {
+        "instance-id": "i-02625350f9258ef16",
+        "state": "terminated"
+    }
+}

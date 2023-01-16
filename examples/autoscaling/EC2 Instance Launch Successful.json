@@ -1,0 +1,28 @@
+{
+    "version": "0",
+    "id": "27247865-5e85-291d-9b01-ef648dde3b36",
+    "detail-type": "EC2 Instance Launch Successful",
+    "source": "aws.autoscaling",
+    "account": "123456789012",
+    "region": "eu-west-2",
+    "resources": [
+        "arn:aws:autoscaling:eu-west-2:123456789012:autoScalingGroup:9c80c684-122b-42cf-b7a2-c8c67ae5a523:autoScalingGroupName/EC2-gitlab-runner-fleet-ScalingGroup",
+        "arn:aws:ec2:eu-west-2:123456789012:instance/i-02625350f9258ef16"
+    ],
+    "detail": {
+        "Origin": "EC2",
+        "Destination": "AutoScalingGroup",
+        "Description": "Launching a new EC2 instance: i-02625350f9258ef16",
+        "RequestId": "a90616c0-5197-7c29-0b7a-326d63baa9eb",
+        "ActivityId": "a90616c0-5197-7c29-0b7a-326d63baa9eb",
+        "EC2InstanceId": "i-02625350f9258ef16",
+        "StatusCode": "InProgress",
+        "StatusMessage": "",
+        "Details": {
+            "Subnet ID": "subnet-0da2b120ad29404e0",
+            "Availability Zone": "eu-west-2c"
+        },
+        "Cause": "At TIME a user request update of AutoScalingGroup constraints to min: 0, max: 4, desired: 1 changing the desired capacity from 0 to 1.  At TIME an instance was started in response to a difference between desired and actual capacity, increasing the capacity from 0 to 1.",
+        "AutoScalingGroupName": "EC2-gitlab-runner-fleet-ScalingGroup"
+    }
+}

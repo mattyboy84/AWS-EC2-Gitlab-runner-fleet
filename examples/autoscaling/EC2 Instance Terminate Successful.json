@@ -1,0 +1,30 @@
+{
+    "version": "0",
+    "id": "b94183a1-f67d-a407-dee7-5b0f9e47d725",
+    "detail-type": "EC2 Instance Terminate Successful",
+    "source": "aws.autoscaling",
+    "account": "123456789012",
+    "region": "eu-west-2",
+    "resources": [
+        "arn:aws:autoscaling:eu-west-2:123456789012:autoScalingGroup:9c80c684-122b-42cf-b7a2-c8c67ae5a523:autoScalingGroupName/EC2-gitlab-runner-fleet-ScalingGroup",
+        "arn:aws:ec2:eu-west-2:123456789012:instance/i-02625350f9258ef16"
+    ],
+    "detail": {
+        "Origin": "AutoScalingGroup",
+        "Destination": "EC2",
+        "Description": "Terminating EC2 instance: i-02625350f9258ef16",
+        "EndTime": "2023-01-14T11:47:05.544Z",
+        "RequestId": "ecf35f2a-d6b1-4bbd-9dfa-6f9ea654ac0c",
+        "ActivityId": "ecf35f2a-d6b1-4bbd-9dfa-6f9ea654ac0c",
+        "StartTime": "2023-01-14T11:46:23.771Z",
+        "EC2InstanceId": "i-02625350f9258ef16",
+        "StatusCode": "InProgress",
+        "StatusMessage": "",
+        "Details": {
+            "Subnet ID": "subnet-0da2b120ad29404e0",
+            "Availability Zone": "eu-west-2c"
+        },
+        "Cause": "At 2023-01-14T11:46:15Z a user request update of AutoScalingGroup constraints to min: 0, max: 4, desired: 0 changing the desired capacity from 1 to 0.  At 2023-01-14T11:46:23Z an instance was taken out of service in response to a difference between desired and actual capacity, shrinking the capacity from 1 to 0.  At 2023-01-14T11:46:23Z instance i-02625350f9258ef16 was selected for termination.",
+        "AutoScalingGroupName": "EC2-gitlab-runner-fleet-ScalingGroup"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "version": "0",
+    "id": "f52e3f4a-66ca-4b3a-3bcd-bb59b5ebb939",
+    "detail-type": "EC2 Instance-terminate Lifecycle Action",
+    "source": "aws.autoscaling",
+    "account": "123456789012",
+    "region": "eu-west-2",
+    "resources": [
+        "arn:aws:autoscaling:eu-west-2:123456789012:autoScalingGroup:1803a22a-2cfb-439a-800a-7cd2a8e138ae:autoScalingGroupName/EC2-gitlab-runner-fleet-ScalingGroup"
+    ],
+    "detail": {
+        "LifecycleActionToken": "7c744339-e066-425d-adc7-535619b51b05",
+        "AutoScalingGroupName": "EC2-gitlab-runner-fleet-ScalingGroup",
+        "LifecycleHookName": "termination-hook",
+        "EC2InstanceId": "i-0775e452e3ac2681b",
+        "LifecycleTransition": "autoscaling:EC2_INSTANCE_TERMINATING",
+        "Origin": "AutoScalingGroup",
+        "Destination": "EC2"
+    }
+}
