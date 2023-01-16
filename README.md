@@ -5,13 +5,13 @@
 ---
 
 # Instance:
-ImageId: ami-084e8c05825742534 (eu-west-2)
-InstanceType: t2.micro
+ - ImageId: ami-084e8c05825742534 (eu-west-2)
+ - InstanceType: t2.micro
 
 # Runners:
-executor: docker
-image: gitlab-runner:latest
-privileged: true (docker-in-docker)
+ - executor: docker
+ - image: gitlab-runner:latest
+ - privileged: true (docker-in-docker)
 
 ---
 
